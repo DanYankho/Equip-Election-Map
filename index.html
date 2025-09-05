@@ -335,6 +335,24 @@
       to { transform: rotate(360deg); }
     }
 
+    /* Keyboard shortcut hint */
+    .keyboard-hint {
+      position: absolute;
+      bottom: var(--tv-safe-margin);
+      left: var(--tv-safe-margin);
+      background: rgba(255, 255, 255, 0.85);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: opacity 0.3s ease;
+    }
+    .keyboard-hint.faded {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     /* small screen tweaks */
     @media (max-width: 900px) {
       :root {
@@ -346,6 +364,10 @@
       .candidate-stats, .party-stats {
         width: 220px;
         font-size: 13px;
+      }
+      .keyboard-hint {
+        font-size: 14px;
+        padding: 8px 12px;
       }
     }
   </style>
@@ -389,6 +411,7 @@
    - white background
    - loads malawi_districts.geojson and CSVs per year
    - Added candidate and party stats panels
+   - Added keyboard controls for year switching
 */
 
 (async function(){
@@ -413,6 +436,9 @@
   const candidateStats = d3.select("#candidate-stats");
   const partyStats = d3.select("#party-stats");
 
+  // Keyboard hint
+  const keyboardHint = d3.select("#keyboard-hint");
+
   // Loading indicator
   const loadingIndicator = d3.select("#loading");
 
@@ -436,6 +462,7 @@
   // Performance optimization cache
   const centroidCache = new Map();
   let resizeTimeout = null;
+  let hintTimeout = null;
 
   // Normalize function
   function normalizeName(name){
@@ -677,20 +704,7 @@
         .classed("active", y === currentYear)
         .text(y)
         .on("click", function(){
-          currentYear = y;
-          // mark active visually
-          yearDropdown.selectAll("button").classed("active", d => false);
-          d3.select(this).classed("active", true);
-          // update header text
-          d3.select("#page-title").text(`Malawi Presidential Election — ${y}`);
-          // update map colors
-          updateMapForYear(currentYear);
-          // update stats panels
-          updateStatsPanels(currentYear);
-          // close dropdown
-          hideYearDropdown();
-          // reset view so colors show across full map
-          resetView();
+          setYear(y);
         });
     });
   }
@@ -849,6 +863,49 @@
     infoPanel.html(buildInfoPanelHtml(d, currentYear)).classed("visible", true).attr("aria-hidden","false");
   }
 
+  // ---------- Set year function (used by both UI and keyboard) ----------
+  function setYear(year) {
+    if (!years.includes(year)) return;
+    
+    currentYear = year;
+    // mark active visually
+    yearDropdown.selectAll("button").classed("active", d => false);
+    yearDropdown.selectAll("button").filter(d => d === year).classed("active", true);
+    // update header text
+    d3.select("#page-title").text(`Malawi Presidential Election — ${year}`);
+    // update map colors
+    updateMapForYear(currentYear);
+    // update stats panels
+    updateStatsPanels(currentYear);
+    // close dropdown
+    hideYearDropdown();
+    // reset view so colors show across full map
+    resetView();
+  }
+
+  // ---------- Keyboard controls ----------
+  function setupKeyboardControls() {
+    document.addEventListener('keydown', (e) => {
+      // Only process number keys 1-8
+      if (e.key >= '1' && e.key <= '8') {
+        const yearIndex = parseInt(e.key) - 1;
+        if (yearIndex < years.length) {
+          setYear(years[yearIndex]);
+          
+          // Show keyboard hint briefly
+          keyboardHint.classed("faded", false);
+          clearTimeout(hintTimeout);
+          hintTimeout = setTimeout(() => {
+            keyboardHint.classed("faded", true);
+          }, 2000);
+        }
+      }
+      
+      // Also support Escape to reset view
+      if (e.key === "Escape") resetView();
+    });
+  }
+
   // ---------- Load geojson + CSVs and draw map ----------
   try {
     // Show loading indicator
@@ -922,13 +979,16 @@
     // 7) initialize zoom
     initZoom();
 
-    // 8) initial UI state
+    // 8) set up keyboard controls
+    setupKeyboardControls();
+
+    // 9) initial UI state
     d3.select("#page-title").text(`Malawi Presidential Election — ${currentYear}`);
 
-    // 9) update stats panels
+    // 10) update stats panels
     updateStatsPanels(currentYear);
 
-    // 10) global click on background resets (click on svg not on district)
+    // 11) global click on background resets (click on svg not on district)
     svg.on("click", (event) => {
       // if clicked directly on svg (not a path), reset
       const target = event.target;
@@ -936,9 +996,6 @@
         resetView();
       }
     });
-
-    // 11) keyboard Esc to reset
-    window.addEventListener("keydown", (e) => { if(e.key === "Escape") resetView(); });
 
     // 12) handle window resize: recompute projection and update paths
     window.addEventListener("resize", () => {
@@ -976,14 +1033,7 @@
         .text(y)
         .classed("active", y === currentYear)
         .on("click", function(){
-          currentYear = y;
-          yearDropdown.selectAll("button").classed("active", false);
-          d3.select(this).classed("active", true);
-          d3.select("#page-title").text(`Malawi Presidential Election — ${y}`);
-          updateMapForYear(y);
-          updateStatsPanels(y);
-          hideYearDropdown();
-          resetView();
+          setYear(y);
         });
     });
   }
