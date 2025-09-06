@@ -38,6 +38,11 @@
       transform: none; /* Removed the centering transform */
       z-index: 75; /* Increased z-index to be above dropdown */
       pointer-events: none;
+      transition: opacity 300ms ease, visibility 300ms ease;
+    }
+    .header.hidden {
+      opacity: 0;
+      visibility: hidden;
     }
     .header h1 {
       margin: 0;
@@ -128,7 +133,7 @@
     .info-panel {
       position: absolute;
       left: var(--tv-safe-margin);
-      top: 475px;
+      top: 300px;
       transform: translateY(-50%);
       width: var(--panel-width);
       max-height: 80vh;
@@ -151,7 +156,7 @@
       color: var(--accent); 
       font-weight: 700; 
       margin-bottom: 10px; 
-      font-size: 34px;
+      font-size: 60px;
       border-bottom: 2px solid var(--accent);
       padding-bottom: 8px;
       letter-spacing: 0.5px; /* Improved crispness on HD */
@@ -159,7 +164,7 @@
     .info-panel .meta { 
       color: #444; 
       margin-bottom: 16px; 
-      font-size: 18px;
+      font-size: 30px;
       font-weight: 500;
     }
     .info-panel table { 
@@ -397,6 +402,11 @@
       </table>
     </div>
     
+    <!-- Keyboard shortcut hint -->
+    <div id="keyboard-hint" class="keyboard-hint">
+      Press 1-8 to switch years: 1=1994, 2=1999, 3=2004, 4=2009, 5=2014, 6=2019, 7=2020, 8=2025
+    </div>
+    
     <div id="loading" class="loading" style="display: none;">
       <div class="loading-spinner"></div>
       <span>Loading data...</span>
@@ -412,6 +422,7 @@
    - loads malawi_districts.geojson and CSVs per year
    - Added candidate and party stats panels
    - Added keyboard controls for year switching
+   - Header hides when district is selected
 */
 
 (async function(){
@@ -431,6 +442,9 @@
 
   // Info panel
   const infoPanel = d3.select("#info-panel");
+
+  // Header element
+  const header = d3.select(".header");
 
   // Stats panels
   const candidateStats = d3.select("#candidate-stats");
@@ -820,6 +834,9 @@
     if(districtSelection) districtSelection.classed("faded", false).classed("focused", false);
     infoPanel.classed("visible", false).attr("aria-hidden","true");
     
+    // Show header again
+    header.classed("hidden", false);
+    
     // Show right panels again
     candidateStats.classed("faded", false);
     partyStats.classed("faded", false);
@@ -839,6 +856,9 @@
     // else focus this feature
     selectedFeature = d;
     selectedFeatureId = id;
+
+    // Hide header when district is selected
+    header.classed("hidden", true);
 
     // focus / zoom to right side
     focusOnFeature(d);
