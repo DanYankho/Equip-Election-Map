@@ -133,7 +133,7 @@
     .info-panel {
       position: absolute;
       left: var(--tv-safe-margin);
-      top: 300px;
+      top: 50%;
       transform: translateY(-50%);
       width: var(--panel-width);
       max-height: 80vh;
@@ -188,8 +188,8 @@
     }
     .winner-badge {
       display: inline-block;
-      background: var(--accent);
-      color: #000;
+      background: #FFF;
+      color: #0D2136;
       font-weight: bold;
       font-size: 11px;
       padding: 2px 8px;
@@ -216,12 +216,19 @@
       right: var(--tv-safe-margin);
       top: 50px; /* Adjusted for TV safe zone */
       width: 420px; /* Increased width for party labels */
+      height: 400px; /* Increased height to fit 5 parties comfortably */
+      max-height: 400px; /* Prevent it from growing beyond 5 parties */
+      overflow-y: auto; /* Add scroll if there are more than 5 parties */
     }
     
     .party-stats {
-      right: var(--tv-safe-margin);
-      bottom: var(--tv-safe-margin);
+      top: 250px;
+      left: var(--tv-safe-margin);
+      font-size: 30px;
       width: 280px;
+      height: 300px; /* Increased height to fit 5 parties comfortably */
+      max-height: 300px; /* Prevent it from growing beyond 5 parties */
+      overflow-y: auto; /* Add scroll if there are more than 5 parties */
     }
     
     .stats-panel.faded {
@@ -400,11 +407,6 @@
       <table class="stats-table" id="party-table">
         <!-- Will be populated dynamically -->
       </table>
-    </div>
-    
-    <!-- Keyboard shortcut hint -->
-    <div id="keyboard-hint" class="keyboard-hint">
-      Press 1-8 to switch years: 1=1994, 2=1999, 3=2004, 4=2009, 5=2014, 6=2019, 7=2020, 8=2025
     </div>
     
     <div id="loading" class="loading" style="display: none;">
