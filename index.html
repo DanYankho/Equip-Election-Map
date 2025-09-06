@@ -216,8 +216,8 @@
       right: var(--tv-safe-margin);
       top: 50px; /* Adjusted for TV safe zone */
       width: 420px; /* Increased width for party labels */
-      height: 400px; /* Increased height to fit 5 parties comfortably */
-      max-height: 400px; /* Prevent it from growing beyond 5 parties */
+      height: 600px; /* Increased height to fit 5 parties comfortably */
+      max-height: 500px; /* Prevent it from growing beyond 5 parties */
       overflow-y: auto; /* Add scroll if there are more than 5 parties */
     }
     
@@ -278,16 +278,18 @@
     
     .stats-table .votes {
       text-align: right;
-      color: #666; /* Better contrast */
+      color: #202020; /* Better contrast */
       font-size: 18px; /* Larger for TV */
       padding-right: 5px;
     }
     
     .stats-table .party-label {
+      display: block;
       font-size: 16px;
       color: #777;
       font-weight: 500;
-      margin-left: 8px;
+      margin-left: 0;
+      margin-top: 4px;
     }
 
     /* Party swatch - only for districts won panel */
