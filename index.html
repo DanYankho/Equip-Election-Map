@@ -92,6 +92,41 @@
     }
     .year-dropdown button:hover { background: rgba(0,0,0,0.04); }
     .year-dropdown button.active { background: var(--accent); color:#000; font-weight:700; }
+    
+    /* Keyboard mode toggle */
+    .keyboard-mode {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    .keyboard-mode label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .keyboard-mode-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .keyboard-mode-options button {
+      text-align: left;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .keyboard-mode-options button.active {
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .keyboard-mode-options button:hover:not(.active) {
+      background: rgba(0,0,0,0.04);
+    }
 
     /* Map container - LARGER SIZE */
     #map-root {
@@ -280,7 +315,7 @@
       text-align: right;
       color: #333; /* Darker for better contrast */
       font-weight: 700; /* Bolder for emphasis */
-      padding-right: 15px; /* Added spacing */
+      padding-right: 5px; /* Added spacing */
       font-size: 22px; /* Larger percentage numbers */
     }
     
@@ -375,6 +410,25 @@
       pointer-events: none;
     }
 
+    /* Two-digit input indicator */
+    .input-indicator {
+      position: absolute;
+      bottom: calc(var(--tv-safe-margin) + 60px);
+      left: var(--tv-safe-margin);
+      background: rgba(255, 255, 255, 0.85);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: none;
+    }
+    .input-indicator .digits {
+      font-weight: bold;
+      color: var(--accent);
+      margin: 0 5px;
+    }
+
     /* small screen tweaks */
     @media (max-width: 900px) {
       :root {
@@ -391,6 +445,7 @@
         font-size: 14px;
         padding: 8px 12px;
       }
+
     }
   </style>
 </head>
@@ -423,7 +478,7 @@
       <div class="loading-spinner"></div>
       <span>Loading data...</span>
     </div>
-  </div>
+    
 
 <script>
 /* ========= FULL SCRIPT =========
@@ -435,13 +490,58 @@
    - Added candidate and party stats panels
    - Added keyboard controls for year switching
    - Header hides when district is selected
+   - Added two-digit year input option
 */
+
 
 (async function(){
 
   // ---------- CONFIG ----------
   const years = ["1994","1999","2004","2009","2014","2019","2020","2025"];
   let currentYear = years[0];
+
+  // District abbreviations mapping
+  const districtAbbreviations = {
+  "CHITIPA": "CT",
+  "KARONGA": "KA",
+  "LIKOMA": "LI",
+  "MZIMBA": "MB",
+  "NKHATA BAY": "NB",
+  "RUMPHI": "RU",
+  "DEDZA": "DE",
+  "DOWA": "DO",
+  "KASUNGU": "KU",
+  "LILONGWE": "LL",
+  "MCHINJI": "MI",
+  "NKHOTAKOTA": "NK",
+  "NENO": "NE",
+  "NTCHEU": "NT",
+  "NTCHISI": "NC",
+  "SALIMA": "SA",
+  "BALAKA": "BA",
+  "BLANTYRE": "BT",
+  "CHIKWAWA": "CK",
+  "CHIRADZULU": "CR",
+  "MACHINGA": "MA",
+  "MANGOCHI": "MG",
+  "MULANJE": "MU",
+  "MWANZA": "MW",
+  "NSANJE": "NS",
+  "PHALOMBE": "PH",
+  "THYOLO": "TH",
+  "ZOMBA": "ZA"
+};
+
+// Helper function to get district abbreviation
+function getDistrictAbbreviation(districtName) {
+  const normalized = normalizeName(districtName);
+  return districtAbbreviations[normalized] || normalized.substring(0, 2);
+}
+
+  // Keyboard mode state
+  let keyboardMode = "digits"; // "digits" or "numbers"
+  let digitInput = "";
+  let digitTimeout = null;
 
   // SVG & container
   const mapRoot = document.getElementById("map-root");
@@ -464,6 +564,10 @@
 
   // Keyboard hint
   const keyboardHint = d3.select("#keyboard-hint");
+
+  // Input indicator
+  const inputIndicator = d3.select("#input-indicator");
+  const inputDigits = inputIndicator.select(".digits");
 
   // Loading indicator
   const loadingIndicator = d3.select("#loading");
@@ -512,25 +616,27 @@
     let lastFetchTime = {};
 
     // ---------- Loading CSV data for a year ----------
-    async function loadElectionData(year){
+ // ---------- Loading CSV data for a year ----------
+// ---------- Loading CSV data for a year ----------
+async function loadElectionData(year) {
   // Check cache first (cache for 2 minutes to avoid hitting Google Sheets limits)
   const now = Date.now();
-  if(dataCache[year] && lastFetchTime[year] && (now - lastFetchTime[year] < 120000)) {
+  if (dataCache[year] && lastFetchTime[year] && (now - lastFetchTime[year] < 120000)) {
     console.log(`Using cached data for ${year}`);
     return dataCache[year];
   }
-  
+
   let url;
-  
-  // Use your Google Sheets URL for 2025, local CSVs for other years
-  if(year === "2025") {
-    // YOUR GOOGLE SHEETS URL FOR 2025 DATA
-    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTpAKQpP0n4U1L18i-XirDZcPGCv1_UUZSHahwRopoOrGqFfrKSiMzf5swaFVCdYw7iEU2HR3986nkw/pub?output=csv";
+
+  // Use Google Sheets URL for 2025, local CSVs for other years
+  if (year === "2025") {
+    // Direct CSV export link
+    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuZ4RHNfsq6JMIbJhvxtSYANk5e7DNtqCLAu45msrx0Am2PyX7enT6yLyBCkOB5BXmTta104a6AMA4/pub?gid=1682262614&single=true&output=csv";
   } else {
     const cacheBuster = new Date().getTime();
     url = `data/${year}presRegional.csv?t=${cacheBuster}`;
   }
-  
+
   try {
     console.log(`Loading data for ${year} from: ${url}`);
     const rows = await d3.csv(url);
@@ -552,20 +658,20 @@
       const partyAbbreviation = (partyAbbr || "").trim();
       const color = (colorRaw && colorRaw.trim()) ? colorRaw.trim() : "#999999";
       let votes = 0;
-      try { votes = parseInt((votesRaw||"0").toString().replace(/,/g,''),10) || 0; } catch(e){ votes = 0; }
+      try { votes = parseInt((votesRaw || "0").toString().replace(/,/g, ''), 10) || 0; } catch (e) { votes = 0; }
 
-      if(!district) return;
+      if (!district) return;
 
       partyColors[party] = partyColors[party] || { color: color, abbreviation: partyAbbreviation };
 
-      if(!electionData[district]) electionData[district] = { candidates: {}, color: color };
-      if(!electionData[district].candidates[candidate]) {
-        electionData[district].candidates[candidate] = { 
-          name: candidate, 
-          party: party, 
+      if (!electionData[district]) electionData[district] = { candidates: {}, color: color };
+      if (!electionData[district].candidates[candidate]) {
+        electionData[district].candidates[candidate] = {
+          name: candidate,
+          party: party,
           partyAbbr: partyAbbreviation,
-          votes: 0, 
-          color: color 
+          votes: 0,
+          color: color
         };
       }
       electionData[district].candidates[candidate].votes += votes;
@@ -574,150 +680,162 @@
     // convert candidates into sorted array and pick winner color
     Object.keys(electionData).forEach(k => {
       const arr = Object.values(electionData[k].candidates);
-      arr.sort((a,b) => b.votes - a.votes);
-      
+      arr.sort((a, b) => b.votes - a.votes);
+
       // Calculate vote percentages for each candidate
       const totalVotes = arr.reduce((sum, c) => sum + c.votes, 0);
       arr.forEach(candidate => {
-        candidate.percentage = totalVotes > 0 ? 
+        candidate.percentage = totalVotes > 0 ?
           Math.round((candidate.votes / totalVotes) * 100) : 0;
       });
-      
+
       electionData[k].candidates = arr;
-      if(arr.length > 0) electionData[k].color = arr[0].color || electionData[k].color;
+      if (arr.length > 0) electionData[k].color = arr[0].color || electionData[k].color;
     });
 
     // Store in cache
     const result = { electionData, partyColors };
     dataCache[year] = result;
     lastFetchTime[year] = now;
-    
+
     console.log(`Successfully loaded data for ${year}`);
     return result;
-    
-  } catch(err) {
+
+  } catch (err) {
     console.warn(`Failed to load CSV for ${year} (${url})`, err);
-    
+
     // If we have cached data, return it even if fresh fetch failed
-    if(dataCache[year]) {
+    if (dataCache[year]) {
       console.log(`Returning cached data due to fetch error`);
       return dataCache[year];
     }
-    
+
     return { electionData: {}, partyColors: {} }; // return empty so map still loads
   }
 }
 
   // ---------- Update candidate and party stats ----------
-  function updateStatsPanels(year) {
-    const dataset = allElectionData[year] || { electionData: {}, partyColors: {} };
-    const ed = dataset.electionData || {};
+  // ---------- Update candidate and party stats ----------
+function updateStatsPanels(year) {
+  const dataset = allElectionData[year] || { electionData: {}, partyColors: {} };
+  const ed = dataset.electionData || {};
+  
+  // Calculate candidate totals
+  const candidateTotals = {};
+  const partyDistricts = {};
+  const totalDistricts = Object.keys(ed).length;
+  
+  // Process each district
+  Object.keys(ed).forEach(district => {
+    const districtData = ed[district];
     
-    // Calculate candidate totals
-    const candidateTotals = {};
-    const partyDistricts = {};
-    const totalDistricts = Object.keys(ed).length;
+    // Skip districts with no candidates or all zero votes
+    if (!districtData.candidates || districtData.candidates.length === 0) {
+      return;
+    }
     
-    // Process each district
-    Object.keys(ed).forEach(district => {
-      const districtData = ed[district];
+    // Check if all votes are zero in this district
+    const allZero = districtData.candidates.every(candidate => candidate.votes === 0);
+    if (allZero) {
+      return; // Skip this district
+    }
+    
+    // Count districts won by each party (only if votes > 0)
+    if (districtData.candidates && districtData.candidates.length > 0) {
+      const winningCandidate = districtData.candidates[0];
+      const winningParty = winningCandidate.party;
+      partyDistricts[winningParty] = (partyDistricts[winningParty] || 0) + 1;
+    }
+    
+    // Sum votes for each candidate
+    if (districtData.candidates) {
+      districtData.candidates.forEach(candidate => {
+        if (!candidateTotals[candidate.name]) {
+          candidateTotals[candidate.name] = {
+            votes: 0,
+            party: candidate.party,
+            partyAbbr: candidate.partyAbbr,
+            color: candidate.color
+          };
+        }
+        candidateTotals[candidate.name].votes += candidate.votes;
+      });
+    }
+  });
+  
+  // Convert to arrays and sort
+  const candidateArray = Object.keys(candidateTotals).map(name => ({
+    name,
+    votes: candidateTotals[name].votes,
+    party: candidateTotals[name].party,
+    partyAbbr: candidateTotals[name].partyAbbr,
+    color: candidateTotals[name].color
+  })).sort((a, b) => b.votes - a.votes);
+  
+  const totalVotes = candidateArray.reduce((sum, c) => sum + c.votes, 0);
+  
+  // Calculate percentages
+  candidateArray.forEach(candidate => {
+    candidate.percentage = totalVotes > 0 ? 
+      Math.round((candidate.votes / totalVotes) * 100) : 0;
+  });
+  
+  // Update candidate stats table
+  const candidateTable = d3.select("#candidate-table");
+  candidateTable.selectAll("*").remove();
+  
+  candidateArray.forEach(candidate => {
+    if (candidate.votes > 0) {
+      const row = candidateTable.append("tr");
       
-      // Count districts won by each party
-      if (districtData.candidates && districtData.candidates.length > 0) {
-        const winningCandidate = districtData.candidates[0];
-        const winningParty = winningCandidate.party;
-        partyDistricts[winningParty] = (partyDistricts[winningParty] || 0) + 1;
-      }
+      // Add percentage bar as background
+      row.append("td")
+        .attr("colspan", 4)
+        .style("position", "absolute")
+        .style("top", "2px")
+        .style("left", "2px")
+        .style("width", "calc(100% - 4px)")
+        .style("height", "calc(100% - 4px)")
+        .style("z-index", "0")
+        .html(`<div class="percentage-bar-container"><div class="percentage-bar" style="width: ${candidate.percentage}%; background-color: ${candidate.color || '#888'}"></div></div>`);
       
-      // Sum votes for each candidate
-      if (districtData.candidates) {
-        districtData.candidates.forEach(candidate => {
-          if (!candidateTotals[candidate.name]) {
-            candidateTotals[candidate.name] = {
-              votes: 0,
-              party: candidate.party,
-              partyAbbr: candidate.partyAbbr,
-              color: candidate.color
-            };
-          }
-          candidateTotals[candidate.name].votes += candidate.votes;
-        });
-      }
-    });
-    
-    // Convert to arrays and sort
-    const candidateArray = Object.keys(candidateTotals).map(name => ({
-      name,
-      votes: candidateTotals[name].votes,
-      party: candidateTotals[name].party,
-      partyAbbr: candidateTotals[name].partyAbbr,
-      color: candidateTotals[name].color
-    })).sort((a, b) => b.votes - a.votes);
-    
-    const totalVotes = candidateArray.reduce((sum, c) => sum + c.votes, 0);
-    
-    // Calculate percentages
-    candidateArray.forEach(candidate => {
-      candidate.percentage = totalVotes > 0 ? 
-        Math.round((candidate.votes / totalVotes) * 100) : 0;
-    });
-    
-    // Update candidate stats table
-    const candidateTable = d3.select("#candidate-table");
-    candidateTable.selectAll("*").remove();
-    
-    candidateArray.forEach(candidate => {
-      if (candidate.votes > 0) {
-        const row = candidateTable.append("tr");
-        
-        // Add percentage bar as background
-        row.append("td")
-          .attr("colspan", 4)
-          .style("position", "absolute")
-          .style("top", "2px")
-          .style("left", "2px")
-          .style("width", "calc(100% - 4px)")
-          .style("height", "calc(100% - 4px)")
-          .style("z-index", "0")
-          .html(`<div class="percentage-bar-container"><div class="percentage-bar" style="width: ${candidate.percentage}%; background-color: ${candidate.color || '#888'}"></div></div>`);
-        
-        // Candidate name with party abbreviation
-        row.append("td")
-          .html(`${candidate.name} <span class="party-label">${candidate.partyAbbr || candidate.party}</span>`)
-          .style("font-weight", "700"); // Bolder for TV
-        
-        // Percentage
-        row.append("td").attr("class", "percentage")
-          .text(`${candidate.percentage}%`);
-        
-        // Vote count
-        row.append("td").attr("class", "votes")
-          .text(candidate.votes.toLocaleString());
-      }
-    });
-    
-    // Update party stats table - REMOVED PERCENTAGES
-    const partyTable = d3.select("#party-table");
-    partyTable.selectAll("*").remove();
-    
-    // Convert to array and sort by districts won
-    const partyArray = Object.keys(partyDistricts)
-      .map(party => ({
-        party,
-        districts: partyDistricts[party],
-        color: dataset.partyColors[party]?.color || "#999999",
-        abbreviation: dataset.partyColors[party]?.abbreviation || party
-      }))
-      .sort((a, b) => b.districts - a.districts);
-    
-    partyArray.forEach(party => {
-      const row = partyTable.append("tr");
-      // Party color swatch (only for districts won panel)
-      row.append("td").html(`<span class="party-swatch" style="background:${party.color}"></span>`);
-      row.append("td").text(party.abbreviation).style("font-weight", "700"); // Bolder for TV
-      row.append("td").attr("class", "percentage").text(party.districts); // Only show district count, no percentage
-    });
-  }
+      // Candidate name with party abbreviation
+      row.append("td")
+        .html(`${candidate.name} <span class="party-label">${candidate.partyAbbr || candidate.party}</span>`)
+        .style("font-weight", "700"); // Bolder for TV
+      
+      // Percentage
+      row.append("td").attr("class", "percentage")
+        .text(`${candidate.percentage}%`);
+      
+      // Vote count
+      row.append("td").attr("class", "votes")
+        .text(candidate.votes.toLocaleString());
+    }
+  });
+  
+  // Update party stats table - REMOVED PERCENTAGES
+  const partyTable = d3.select("#party-table");
+  partyTable.selectAll("*").remove();
+  
+  // Convert to array and sort by districts won
+  const partyArray = Object.keys(partyDistricts)
+    .map(party => ({
+      party,
+      districts: partyDistricts[party],
+      color: dataset.partyColors[party]?.color || "#999999",
+      abbreviation: dataset.partyColors[party]?.abbreviation || party
+    }))
+    .sort((a, b) => b.districts - a.districts);
+  
+  partyArray.forEach(party => {
+    const row = partyTable.append("tr");
+    // Party color swatch (only for districts won panel)
+    row.append("td").html(`<span class="party-swatch" style="background:${party.color}"></span>`);
+    row.append("td").text(party.abbreviation).style("font-weight", "700"); // Bolder for TV
+    row.append("td").attr("class", "percentage").text(party.districts); // Only show district count, no percentage
+  });
+}
 
   // ---------- UI: populate years dropdown ----------
   const yearDropdown = d3.select("#yearDropdown");
@@ -733,8 +851,62 @@
           setYear(y);
         });
     });
+    
+    // Add keyboard mode selector at the bottom
+    const modeSection = yearDropdown.append("div")
+      .attr("class", "keyboard-mode");
+      
+    modeSection.append("label")
+      .text("Keyboard Input Mode:");
+      
+    const modeOptions = modeSection.append("div")
+      .attr("class", "keyboard-mode-options");
+      
+    modeOptions.append("button")
+      .attr("type", "button")
+      .classed("active", keyboardMode === "numbers")
+      .text("Number keys 1-8")
+      .on("click", function() {
+        setKeyboardMode("numbers");
+        hideYearDropdown();
+      });
+      
+    modeOptions.append("button")
+      .attr("type", "button")
+      .classed("active", keyboardMode === "digits")
+      .text("Type last 2 digits (e.g., '99' for 1999)")
+      .on("click", function() {
+        setKeyboardMode("digits");
+        hideYearDropdown();
+      });
   }
   buildYearList();
+
+  // Set keyboard mode function
+  function setKeyboardMode(mode) {
+    keyboardMode = mode;
+    digitInput = ""; // Reset any partial input
+    
+    // Update UI
+    yearDropdown.selectAll(".keyboard-mode-options button")
+      .classed("active", function() {
+        const buttonText = d3.select(this).text();
+        return (mode === "numbers" && buttonText.includes("1-8")) ||
+               (mode === "digits" && buttonText.includes("last 2 digits"));
+      });
+      
+    // Update keyboard hint
+    updateKeyboardHint();
+  }
+
+  // Update keyboard hint based on current mode
+  function updateKeyboardHint() {
+    if (keyboardMode === "numbers") {
+      keyboardHint.text("Press 1-8 to switch years, Esc to reset view");
+    } else {
+      keyboardHint.text("Type last 2 digits of year (e.g., '99' for 1999), Esc to reset view");
+    }
+  }
 
   // Make header clickable for dropdown
   d3.select("#page-title").on("click", function(){
@@ -768,7 +940,7 @@
     path.projection(projection);
   }
 
-  // ---------- Info panel builder with vote percentages ----------
+   // ---------- Info panel builder with vote percentages ----------
   function buildInfoPanelHtml(feature, year){
     const dnameRaw = featureDistrictName(feature);
     const dname = normalizeName(dnameRaw);
@@ -780,6 +952,14 @@
       html += `<div class="meta">No election data available for ${escapeHtml(year)}</div>`;
       return html;
     }
+    
+    // Check if all votes are zero
+    const allZero = districtData.candidates.every(candidate => candidate.votes === 0);
+    if (allZero) {
+      html += `<div class="meta">No votes recorded for ${escapeHtml(year)}</div>`;
+      return html;
+    }
+    
     html += `<div class="meta">District votes (${escapeHtml(year)})</div><table>`;
     districtData.candidates.forEach((c, i) => {
       const isWinner = i === 0;
@@ -799,19 +979,34 @@
     html += `</table>`;
     return html;
   }
+
   function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[ch])); }
 
   // ---------- Update fills for current year ----------
-  function updateMapForYear(year){
+// ---------- Update fills for current year ----------
+function updateMapForYear(year){
     const dataset = allElectionData[year] || { electionData: {}, partyColors: {} };
     const ed = dataset.electionData || {};
     if(!districtSelection) return;
     districtSelection.transition().duration(220)
       .attr("fill", d => {
         const dName = normalizeName(featureDistrictName(d));
-        return ed[dName] ? ed[dName].color || "#bdbdbd" : "#f5f5f5"; // Lighter gray for empty districts
+        const districtData = ed[dName];
+        
+        // Check if district exists and has candidates
+        if (!districtData || !districtData.candidates || districtData.candidates.length === 0) {
+          return "#f5f5f5"; // Light gray for no data
+        }
+        
+        // Check if all votes are zero
+        const allZero = districtData.candidates.every(candidate => candidate.votes === 0);
+        if (allZero) {
+          return "#f5f5f5"; // Light gray for zero votes
+        }
+        
+        return districtData.color || "#bdbdbd"; // Normal party color
       });
-  }
+}
 
   // ---------- Zooming behavior (mapGroup transforms) ----------
   function initZoom(){
@@ -915,14 +1110,80 @@
     resetView();
   }
 
+  // Process two-digit input
+  function processDigitInput(digit) {
+    // Clear any existing timeout
+    if (digitTimeout) {
+      clearTimeout(digitTimeout);
+    }
+    
+    // Add the digit to our input
+    digitInput += digit;
+    inputDigits.text(digitInput);
+    
+    // Show the input indicator
+    inputIndicator.style("display", "block");
+    
+    // If we have two digits, try to find a matching year
+    if (digitInput.length === 2) {
+      // Find the year that ends with these digits
+      const matchedYear = years.find(y => y.endsWith(digitInput));
+      
+      if (matchedYear) {
+        setYear(matchedYear);
+        digitInput = "";
+        inputIndicator.style("display", "none");
+      } else {
+        // Flash red to indicate invalid input
+        inputIndicator.style("background", "rgba(255, 200, 200, 0.85)");
+        setTimeout(() => {
+          inputIndicator.style("background", "rgba(255, 255, 255, 0.85)");
+        }, 300);
+      }
+      
+      // Reset after a short delay
+      digitTimeout = setTimeout(() => {
+        digitInput = "";
+        inputIndicator.style("display", "none");
+      }, 1000);
+    } else {
+      // Set timeout to reset if no second digit is entered
+      digitTimeout = setTimeout(() => {
+        digitInput = "";
+        inputIndicator.style("display", "none");
+      }, 2000);
+    }
+  }
+
   // ---------- Keyboard controls ----------
   function setupKeyboardControls() {
     document.addEventListener('keydown', (e) => {
-      // Only process number keys 1-8
-      if (e.key >= '1' && e.key <= '8') {
-        const yearIndex = parseInt(e.key) - 1;
-        if (yearIndex < years.length) {
-          setYear(years[yearIndex]);
+      // Always allow Escape to reset view
+      if (e.key === "Escape") {
+        resetView();
+        return;
+      }
+      
+      // Process based on current keyboard mode
+      if (keyboardMode === "numbers") {
+        // Number keys 1-8 for direct year selection
+        if (e.key >= '1' && e.key <= '8') {
+          const yearIndex = parseInt(e.key) - 1;
+          if (yearIndex < years.length) {
+            setYear(years[yearIndex]);
+            
+            // Show keyboard hint briefly
+            keyboardHint.classed("faded", false);
+            clearTimeout(hintTimeout);
+            hintTimeout = setTimeout(() => {
+              keyboardHint.classed("faded", true);
+            }, 2000);
+          }
+        }
+      } else if (keyboardMode === "digits") {
+        // Two-digit input mode
+        if (e.key >= '0' && e.key <= '9') {
+          processDigitInput(e.key);
           
           // Show keyboard hint briefly
           keyboardHint.classed("faded", false);
@@ -932,9 +1193,6 @@
           }, 2000);
         }
       }
-      
-      // Also support Escape to reset view
-      if (e.key === "Escape") resetView();
     });
   }
 
@@ -1013,6 +1271,7 @@
 
     // 8) set up keyboard controls
     setupKeyboardControls();
+    updateKeyboardHint(); // Set initial hint text
 
     // 9) initial UI state
     d3.select("#page-title").text(`Malawi Presidential Election — ${currentYear}`);
@@ -1068,6 +1327,34 @@
           setYear(y);
         });
     });
+    
+    // Add keyboard mode selector at the bottom
+    const modeSection = yearDropdown.append("div")
+      .attr("class", "keyboard-mode");
+      
+    modeSection.append("label")
+      .text("Keyboard Input Mode:");
+      
+    const modeOptions = modeSection.append("div")
+      .attr("class", "keyboard-mode-options");
+      
+    modeOptions.append("button")
+      .attr("type", "button")
+      .classed("active", keyboardMode === "numbers")
+      .text("Number keys 1-8")
+      .on("click", function() {
+        setKeyboardMode("numbers");
+        hideYearDropdown();
+      });
+      
+    modeOptions.append("button")
+      .attr("type", "button")
+      .classed("active", keyboardMode === "digits")
+      .text("Type last 2 digits (e.g., '99' for 1999)")
+      .on("click", function() {
+        setKeyboardMode("digits");
+        hideYearDropdown();
+      });
   }
 
 })(); // IIFE end
