@@ -15,7 +15,7 @@
       --ui: #222;
       --muted: #777;
       --panel-width: 340px;
-      --tv-safe-margin: 5%; /* TV safe zone margin */
+      --tv-safe-margin: 7%; /* TV safe zone margin */
     }
 
     html, body {
@@ -170,7 +170,7 @@
       left: var(--tv-safe-margin);
       top: 50%;
       transform: translateY(-50%);
-      width: max-content;
+      width: 350px;
       max-height: 80vh;
       background: #ffffff;
       border: 1px solid rgba(0,0,0,0.08);
@@ -191,7 +191,7 @@
       color: var(--accent); 
       font-weight: 700; 
       margin-bottom: 10px; 
-      font-size: 60px;
+      font-size: 61px;
       border-bottom: 2px solid var(--accent);
       padding-bottom: 8px;
       letter-spacing: 0.5px; /* Improved crispness on HD */
@@ -241,6 +241,13 @@
       box-shadow: 0 1px 10px rgba(0,0,0,0.2);
     }
 
+
+
+.zoom-button:hover {
+  transform: scale(1.1);
+  background: #0a1a2b;
+}
+
     /* Stats panels */
     .stats-panel {
       position: absolute;
@@ -258,7 +265,7 @@
     .candidate-stats {
       right: var(--tv-safe-margin);
       top: 50px; /* Adjusted for TV safe zone */
-      width: 420px; /* Increased width for party labels */
+      width: 350px; /* Increased width for party labels */
       height: 80%; /* Increased height to fit 5 parties comfortably */
       max-height: max-content; /* Prevent it from growing beyond 5 parties */
       
@@ -395,14 +402,14 @@
     /* Keyboard shortcut hint */
     .keyboard-hint {
       position: absolute;
-      bottom: var(--tv-safe-margin);
+      bottom: 10%;
       left: var(--tv-safe-margin);
       background: rgba(255, 255, 255, 0.85);
       padding: 10px 15px;
       border-radius: 8px;
       font-size: 16px;
       z-index: 50;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.9);
       transition: opacity 0.3s ease;
     }
     .keyboard-hint.faded {
@@ -478,6 +485,19 @@
       <div class="loading-spinner"></div>
       <span>Loading data...</span>
     </div>
+    
+    <button id="likoma-button" class="zoom-button" aria-label="Focus on Likoma Island">
+      L
+    </button>
+
+    <div class="keyboard-hint">
+  <div class="keyboard-hint-content">
+    <div class="keyboard-hint-text">*Unofficial results for 2025*</div>
+    <div class="keyboard-hint-bar">
+      <div class="keyboard-hint-progress" style="width: 50%;"></div>
+    </div>
+  </div>
+</div>
     
 
 <script>
@@ -713,6 +733,65 @@ async function loadElectionData(year) {
     return { electionData: {}, partyColors: {} }; // return empty so map still loads
   }
 }
+
+
+// Function to find Likoma feature
+function findLikomaFeature() {
+  if (!geoData || !geoData.features) return null;
+  
+  return geoData.features.find(feature => {
+    const name = featureDistrictName(feature);
+    return normalizeName(name) === "LIKOMA";
+  });
+}
+
+// Function to focus on Likoma
+function focusOnLikoma() {
+  const likomaFeature = findLikomaFeature();
+  if (!likomaFeature) return;
+  
+  // If already focused on Likoma, reset view
+  if (selectedFeatureId === "LIKOMA") {
+    resetView();
+    return;
+  }
+  
+  // Select Likoma
+  selectedFeature = likomaFeature;
+  selectedFeatureId = "LIKOMA";
+  
+  // Hide header
+  header.classed("hidden", true);
+  
+  // Focus/zoom to Likoma
+  focusOnFeature(likomaFeature);
+  
+  // Fade other districts, highlight Likoma
+  districtSelection.classed("faded", true);
+  districtSelection.filter(d => {
+    const name = normalizeName(featureDistrictName(d));
+    return name === "LIKOMA";
+  }).classed("faded", false).classed("focused", true).raise();
+  
+  // Hide right panels
+  candidateStats.classed("faded", true);
+  partyStats.classed("faded", true);
+  
+  // Build info panel content
+  infoPanel.html(buildInfoPanelHtml(likomaFeature, currentYear))
+            .classed("visible", true)
+            .attr("aria-hidden", "false");
+}
+
+// Add this to your initialization code (after setting up districts)
+document.getElementById('likoma-button').addEventListener('click', focusOnLikoma);
+
+// Also add keyboard shortcut for 'L' key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'l' || e.key === 'L') {
+    focusOnLikoma();
+  }
+});
 
   // ---------- Update candidate and party stats ----------
   // ---------- Update candidate and party stats ----------
@@ -1036,9 +1115,13 @@ function updateMapForYear(year){
   function resetView(){
     selectedFeature = null;
     selectedFeatureId = null;
-    svg.transition().duration(1800).call(zoomBehavior.transform, d3.zoomIdentity); // Faster transition for TV
-    // remove classes
-    if(districtSelection) districtSelection.classed("faded", false).classed("focused", false);
+    svg.transition().duration(1800).call(zoomBehavior.transform, d3.zoomIdentity);
+    
+    // remove classes from all districts
+    if(districtSelection) {
+      districtSelection.classed("faded", false).classed("focused", false);
+    }
+  
     infoPanel.classed("visible", false).attr("aria-hidden","true");
     
     // Show header again
@@ -1048,7 +1131,6 @@ function updateMapForYear(year){
     candidateStats.classed("faded", false);
     partyStats.classed("faded", false);
   }
-
   // ---------- Click handler (toggle zoom) ----------
   function onDistrictClick(event, d){
     // if this feature is already selected, zoom out
