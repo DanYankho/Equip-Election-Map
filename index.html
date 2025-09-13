@@ -3,214 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Detection</title>
+    <title>Loading Optimal Experience</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         body {
-            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            background: #f8f9fa;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
             color: #333;
         }
         
         .container {
-            background-color: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            padding: 40px;
             text-align: center;
-            max-width: 600px;
-            width: 100%;
-            animation: fadeIn 0.8s ease;
+            max-width: 500px;
+            width: 90%;
+            padding: 2rem;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        h1 {
-            color: #3a0ca3;
-            margin-bottom: 20px;
-            font-size: 2.5rem;
-        }
-        
-        p {
-            color: #555;
-            margin-bottom: 30px;
-            font-size: 1.1rem;
-            line-height: 1.6;
-        }
-        
-        .detection-box {
-            background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 30px;
-            margin: 30px 0;
-        }
-        
-        .spinner {
-            display: inline-block;
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(67, 97, 238, 0.3);
+        .loader {
+            margin: 2rem auto;
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
             border-radius: 50%;
-            border-top-color: #4361ee;
-            animation: spin 1s ease-in-out infinite;
-            margin-bottom: 20px;
+            border-top: 4px solid #4361ee;
+            animation: spin 1s linear infinite;
         }
         
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
-        .device-icon {
-            font-size: 3.5rem;
-            margin-bottom: 15px;
-            display: none;
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #212529;
         }
         
-        .status-text {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #3a0ca3;
-        }
-        
-        .device-type {
+        p {
             font-size: 1.1rem;
-            color: #666;
-            margin-bottom: 20px;
-        }
-        
-        .redirect-text {
-            font-size: 1rem;
             color: #6c757d;
-            margin-top: 20px;
+            line-height: 1.5;
         }
         
-        .manual-select {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #dee2e6;
-        }
-        
-        .manual-select p {
-            margin-bottom: 15px;
-            color: #6c757d;
-        }
-        
-        .btn {
+        .device-info {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #e9ecef;
+            border-radius: 8px;
             display: inline-block;
-            padding: 12px 25px;
-            background: linear-gradient(to right, #4361ee, #3a0ca3);
-            color: white;
-            border: none;
-            border-radius: 50px;
+        }
+        
+        .countdown {
+            margin-top: 1.5rem;
             font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 5px;
-            text-decoration: none;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
-        }
-        
-        .btn-mobile {
-            background: linear-gradient(to right, #7209b7, #f72585);
-        }
-        
-        @media (max-width: 768px) {
-            .container {
-                padding: 25px;
-            }
-            
-            h1 {
-                font-size: 2rem;
-            }
-            
-            p {
-                font-size: 1rem;
-            }
-            
-            .detection-box {
-                padding: 20px;
-            }
+            color: #495057;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Welcome to Our Website</h1>
-        <p>We're detecting your device to provide the optimal viewing experience.</p>
+        <h1>Loading Optimal Experience</h1>
+        <p>We're detecting your device to provide the best experience</p>
         
-        <div class="detection-box">
-            <div class="spinner" id="spinner"></div>
-            <div class="device-icon" id="deviceIcon">📱</div>
-            <div class="status-text" id="statusText">Detecting your device...</div>
-            <div class="device-type" id="deviceType"></div>
-            <div class="redirect-text" id="redirectText">You will be redirected automatically in a few seconds</div>
+        <div class="loader"></div>
+        
+        <div class="device-info" id="deviceInfo" style="display: none;">
+            <p id="deviceText">Device detected: <span id="deviceType"></span></p>
         </div>
         
-        <div class="manual-select">
-            <p>Prefer to select manually?</p>
-            <a href="desktop.html" class="btn">Desktop Version</a>
-            <a href="mobile.html" class="btn btn-mobile">Mobile Version</a>
+        <div class="countdown" id="countdown" style="display: none;">
+            Redirecting in <span id="count">3</span> seconds
         </div>
     </div>
 
     <script>
         function detectDevice() {
-            const spinner = document.getElementById('spinner');
-            const deviceIcon = document.getElementById('deviceIcon');
-            const statusText = document.getElementById('statusText');
-            const deviceType = document.getElementById('deviceType');
-            const redirectText = document.getElementById('redirectText');
-            
-            // Simulate detection process
+            // Show loading for a moment before detection
             setTimeout(() => {
                 // Device detection logic
                 const isMobile = window.innerWidth <= 768 || ('ontouchstart' in window);
                 
+                const deviceInfo = document.getElementById('deviceInfo');
+                const deviceType = document.getElementById('deviceType');
+                const countdown = document.getElementById('countdown');
+                const count = document.getElementById('count');
+                
                 if (isMobile) {
-                    // Mobile device detected
-                    statusText.textContent = 'Mobile Device Detected';
-                    deviceType.textContent = 'We\'ve detected you\'re using a mobile device';
-                    deviceIcon.textContent = '📱';
-                    deviceIcon.style.display = 'block';
-                    spinner.style.display = 'none';
-                    
-                    // Redirect to mobile version after a brief delay
-                    setTimeout(() => {
-                        window.location.href = 'mobile.html';
-                    }, 3000);
+                    deviceType.textContent = 'Mobile';
+                    // Redirect to mobile version
+                    startCountdown('mobile.html');
                 } else {
-                    // Desktop/tablet device detected
-                    statusText.textContent = 'Desktop/Tablet Detected';
-                    deviceType.textContent = 'We\'ve detected you\'re using a desktop or tablet';
-                    deviceIcon.textContent = '💻';
-                    deviceIcon.style.display = 'block';
-                    spinner.style.display = 'none';
-                    
-                    // Redirect to desktop version after a brief delay
-                    setTimeout(() => {
-                        window.location.href = 'desktop.html';
-                    }, 3000);
+                    deviceType.textContent = 'Desktop/Tablet';
+                    // Redirect to desktop version
+                    startCountdown('desktop.html');
                 }
-            }, 2000);
+                
+                // Show device info and countdown
+                deviceInfo.style.display = 'inline-block';
+                countdown.style.display = 'block';
+                
+            }, 1500); // Show loader for 1.5 seconds before detection
+        }
+        
+        function startCountdown(redirectUrl) {
+            let seconds = 3;
+            const count = document.getElementById('count');
+            const countdown = setInterval(() => {
+                count.textContent = seconds;
+                seconds--;
+                
+                if (seconds < 0) {
+                    clearInterval(countdown);
+                    window.location.href = redirectUrl;
+                }
+            }, 1000);
         }
         
         // Start detection when page loads
